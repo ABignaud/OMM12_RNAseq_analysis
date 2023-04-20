@@ -1,0 +1,14 @@
+# Directories.
+samples : 'config/samples.csv'
+base_dir : '/pasteur/appa/homes/ambignau/Phages3C/abignaud/OMM12_RNAseq'
+out_dir :  'results'
+tmp_dir : 'tmp'
+ref_dir : 'ref'
+fastq_dir : 'fastq'
+fig_dir : 'figures'
+
+# Threads parameters.
+threads : 32
+threads_2 : 16
+threads_small : 4
+

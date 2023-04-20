@@ -1,0 +1,20 @@
+library;type;enzyme;day;citro;replicates
+#
+# Iseq
+#
+DC003;rna;-;00;non;1
+DC004;rna;-;00;non;2
+DC005;rna;-;00;non;3
+DC006;rna;-;00;non;4
+DC007;rna;-;10;yes;1
+DC008;rna;-;10;yes;2
+DC009;rna;-;10;non;1
+DC010;rna;-;10;non;2
+DC011;rna;-;10;yes;3
+DC012;rna;-;10;yes;4
+DC013;rna;-;20;yes;1
+DC014;rna;-;20;yes;2
+DC015;rna;-;20;non;1
+DC016;rna;-;20;non;2
+DC017;rna;-;20;yes;3
+DC018;rna;-;20;yes;4
