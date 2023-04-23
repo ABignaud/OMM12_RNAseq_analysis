@@ -1,0 +1,14 @@
+name: split_fastq
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - requests
+  - fastqc=0.11.8
+  - cutadapt=4.2
+  - fastq-screen=0.15.2
+  - rseqc=5.0.1
+  - samtools=1.15
+  - preseq=3.2.0
+  - multiqc=1.14

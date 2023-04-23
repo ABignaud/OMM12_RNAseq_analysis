@@ -1,6 +1,6 @@
 # Directories.
 samples : 'config/samples.csv'
-base_dir : '/pasteur/appa/homes/ambignau/Phages3C/abignaud/OMM12_RNAseq'
+base_dir : '/pasteur/appa/homes/ambignau/Phage3C/abignaud/OMM12_RNAseq'
 out_dir :  'results'
 tmp_dir : 'tmp'
 ref_dir : 'ref'
@@ -8,7 +8,26 @@ fastq_dir : 'fastq'
 fig_dir : 'figures'
 
 # Threads parameters.
-threads : 32
-threads_2 : 16
+threads : 16
 threads_small : 4
 
+# RNA processing
+reseq : ['_isq']
+ref : ['OMM12_citro']
+bacteria : [
+  'a_muciniphila',
+  'a_muris',
+  'b_animalis',
+  'b_caecimuris',
+  'b_coccoides',
+  'c_clostridioforme',
+  'c_innocuum',
+  'citrobacter_DBS100',
+  'e_faecalis',
+  'f_plautii',
+  'l_reuteri',
+  'm_intestinale',
+  't_muris',
+]
+fastq_screen_conf : 'config/fastq_screen.conf'
+bowtie2_args : "--sensitive-local"

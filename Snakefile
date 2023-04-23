@@ -32,20 +32,26 @@ REF_DIR = join(config['base_dir'], config['ref_dir'])
 FASTQ_DIR = join(config['base_dir'], config['fastq_dir'])
 FIG_DIR = join(config['base_dir'], config['fig_dir'])
 
+library = np.unique(samples.library) 
+
 wildcard_constraints:
-    library = '|'.join(np.unique(samples.library))
-    reseq = "|".join(['isq']),
+    library = '|'.join(library),
+    ref = '|'.join(config['ref']),
+    reseq = "|".join(config['reseq']),
 
 # Pipeline sub-workflows
 include: 'rules/01_rna_processing.smk'
+include: 'rules/02_feature_counts.smk'
 
 rule all:
     input:
         # 01 - RNA processing
         expand(
-            join(TMP, 'salmon', '{ref}', '{rna_library}{reseq}.done'),
-            rna_library=rna_library,
-            reseq = '_nxq',
-            ref=config['ref'],      
+            join(OUT_DIR, 'multiqc', '{ref}_multiqc_report.html'),
+            ref = config['ref'],
         ),
-        join(OUT_DIR, 'multiqc', f'{config["title"]}_multiqc_report.html'),
+        # 02 - FeatreCounts
+        expand(
+           join(OUT_DIR, 'featureCounts', '{bacteria}_featureCounts_corrected.txt'),
+            bacteria = config['bacteria'],
+        ),

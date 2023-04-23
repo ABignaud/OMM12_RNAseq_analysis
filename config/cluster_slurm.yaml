@@ -1,0 +1,51 @@
+# Command to run everything
+
+# First it's necessary to build conda env as the cluster nodes are not connected
+# to the network.
+# snakemake --conda-create-envs-only --use-conda -j 1
+
+# Build the log directory.
+# mkdir -p logs/cluster/
+
+# Run everything on cluster.
+# snakemake --cluster "sbatch --mem {cluster.mem} -q {cluster.queue} -p {cluster.partition} -c {cluster.ncpus} -n {cluster.ntasks} -J {cluster.name} -o {cluster.output} -e {cluster.error}" --cluster-config config/cluster_slurm.yaml -j 128 --use-conda
+
+__default__:
+    queue: fast
+    partition: common,dedicated
+    ncpus: 16
+    mem: 16G
+    ntasks: 1
+    name: DCR.{rule}.{wildcards}
+    output: logs/cluster/{rule}.{wildcards}.out
+    error: logs/cluster/{rule}.{wildcards}.err
+
+preseq:
+    queue: fast
+    partition: common,dedicated
+    ncpus: 1
+    mem: 8G
+    ntasks: 1
+    name: DCR.{rule}.{wildcards}
+    output: logs/cluster/{rule}.{wildcards}.out
+    error: logs/cluster/{rule}.{wildcards}.err
+
+rseqc:
+    queue: fast
+    partition: common,dedicated
+    ncpus: 1
+    mem: 16G
+    ntasks: 1
+    name: DCR.{rule}.{wildcards}
+    output: logs/cluster/{rule}.{wildcards}.out
+    error: logs/cluster/{rule}.{wildcards}.err
+  
+multiqc:
+    queue: fast
+    partition: common,dedicated
+    ncpus: 1
+    mem: 8G
+    ntasks: 1
+    name: DCR.{rule}.{wildcards}
+    output: logs/cluster/{rule}.{wildcards}.out
+    error: logs/cluster/{rule}.{wildcards}.err
