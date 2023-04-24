@@ -1,0 +1,11 @@
+name: DGE
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - requests
+  - pip
+  - subread=2.0.3
+  - pip:
+    - pandas==1.5.3
