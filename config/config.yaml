@@ -8,11 +8,14 @@ fastq_dir : 'fastq'
 fig_dir : 'figures'
 
 # Threads parameters.
+threads_large : 32
 threads : 16
 threads_small : 4
 
 # RNA processing
-reseq : ['_isq']
+reseq : ['_isq', '_nxq', '_mgi']
+se_reseq : ['_nxq']
+pe_reseq : ['_isq', '_mgi']
 ref : ['OMM12_citro']
 bacteria : [
   'a_muciniphila',
@@ -31,3 +34,8 @@ bacteria : [
 ]
 fastq_screen_conf : 'config/fastq_screen.conf'
 bowtie2_args : "--sensitive-local"
+
+# DESeq2
+metadata : 'config/metadata.csv'
+pval : 1.e-50
+fold_change : 2

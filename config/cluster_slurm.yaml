@@ -20,6 +20,16 @@ __default__:
     output: logs/cluster/{rule}.{wildcards}.out
     error: logs/cluster/{rule}.{wildcards}.err
 
+align_rna_pe:
+    queue: normal
+    partition: common
+    ncpus: 32
+    mem: 32G
+    ntasks: 1
+    name: DCR.{rule}.{wildcards}
+    output: logs/cluster/{rule}.{wildcards}.out
+    error: logs/cluster/{rule}.{wildcards}.err
+
 preseq:
     queue: fast
     partition: common,dedicated
@@ -31,10 +41,10 @@ preseq:
     error: logs/cluster/{rule}.{wildcards}.err
 
 rseqc:
-    queue: fast
-    partition: common,dedicated
+    queue: normal 
+    partition: common
     ncpus: 1
-    mem: 16G
+    mem: 32G
     ntasks: 1
     name: DCR.{rule}.{wildcards}
     output: logs/cluster/{rule}.{wildcards}.out

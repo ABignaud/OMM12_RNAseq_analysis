@@ -15,19 +15,19 @@ rule rna_fastqc:
     shell: 'fastqc --quiet --threads {threads} --outdir {params.outdir} {input}'        
 
 # Trim adapters
-rule rna_trimgalore:
+rule rna_trimgalore_pe:
     input:
-        R1 = join(FASTQ_DIR, '{library}{reseq}_R1.fq.gz'),
-        R2 = join(FASTQ_DIR, '{library}{reseq}_R2.fq.gz'),
+        R1 = join(FASTQ_DIR, '{library}{pe_reseq}_R1.fq.gz'),
+        R2 = join(FASTQ_DIR, '{library}{pe_reseq}_R2.fq.gz'),
     output:
-        R1 = join(TMP, 'trimgalore', '{library}{reseq}_R1.fq.gz'),
-        R2 = join(TMP, 'trimgalore', '{library}{reseq}_R2.fq.gz'),
+        R1 = join(TMP, 'trimgalore', '{library}{pe_reseq}_R1.fq.gz'),
+        R2 = join(TMP, 'trimgalore', '{library}{pe_reseq}_R2.fq.gz'),
     params:
-        basename = '{library}{reseq}',
+        basename = '{library}{pe_reseq}',
         outdir = join(TMP, 'trimgalore'),
-        out_R1 = join(TMP, 'trimgalore', '{library}{reseq}_val_1.fq.gz'),
-        out_R2 = join(TMP, 'trimgalore', '{library}{reseq}_val_2.fq.gz'),
-    threads: config['threads']
+        out_R1 = join(TMP, 'trimgalore', '{library}{pe_reseq}_val_1.fq.gz'),
+        out_R2 = join(TMP, 'trimgalore', '{library}{pe_reseq}_val_2.fq.gz'),
+    threads: config['threads_large']
     conda: "../envs/qc.yaml"
     shell: 
         """
@@ -45,6 +45,31 @@ rule rna_trimgalore:
             {input.R2}
         mv {params.out_R1} {output.R1}
         mv {params.out_R2} {output.R2}
+        """
+
+rule rna_trimgalore_se:
+    input:
+        R1 = join(FASTQ_DIR, '{library}{se_reseq}_R1.fq.gz'),
+    output:
+        R1 = join(TMP, 'trimgalore', '{library}{se_reseq}_R1.fq.gz'),
+    params:
+        basename = '{library}{se_reseq}',
+        outdir = join(TMP, 'trimgalore'),
+        out_R1 = join(TMP, 'trimgalore', '{library}{se_reseq}_trimmed.fq.gz'),
+    threads: config['threads']
+    conda: "../envs/qc.yaml"
+    shell: 
+        """
+        trim_galore \
+            --basename {params.basename} \
+            --output_dir {params.outdir} \
+            --illumina \
+            --quality 20 \
+            --stringency 3 \
+            -j {threads} \
+            --gzip \
+            {input.R1} 
+        mv {params.out_R1} {output.R1}
         """
 
 # fastq screen
@@ -65,6 +90,7 @@ rule rna_fastq_screen:
             --outdir {params.outdir} \
             --conf {params.conf} \
             --threads {threads} \
+            --force \
             {input.fastq} 
         """
 
@@ -79,23 +105,23 @@ rule bt2_index:
     shell: "bowtie2-build --threads {threads} {input} {params.idx}"
 
 # Map the reads and sort them.
-rule align_rna:
+rule align_rna_pe:
     input:
         index_flag = join(REF_DIR, 'index', '{ref}.bt2_index.done'),
-        R1 = join(TMP, 'trimgalore', '{library}{reseq}_R1.fq.gz'),
-        R2 = join(TMP, 'trimgalore', '{library}{reseq}_R2.fq.gz'),
+        R1 = join(TMP, 'trimgalore', '{library}{pe_reseq}_R1.fq.gz'),
+        R2 = join(TMP, 'trimgalore', '{library}{pe_reseq}_R2.fq.gz'),
     output: 
-        join(TMP, 'align', '{ref}', '{library}{reseq}.bam'),
+        join(TMP, 'bam', '{ref}', '{library}{pe_reseq}.bam')
     params:
         index = join(REF_DIR, 'index', '{ref}'),
         bt2_presets = config['bowtie2_args'],
         outdir = join(TMP, 'align', '{ref}'),
-        sam = join(TMP, 'align', '{ref}', '{library}{reseq}.sam'),
-        tmp1 = join(TMP, 'align', '{ref}', '{library}{reseq}.bam.tmp1'),
-        tmp2 = join(TMP, 'align', '{ref}', '{library}{reseq}.bam.tmp2'),
-    threads: config['threads']
+        sam = join(TMP, 'align', '{ref}', '{library}{pe_reseq}.sam'),
+        tmp1 = join(TMP, 'align', '{ref}', '{library}{pe_reseq}.bam.tmp1'),
+        tmp2 = join(TMP, 'align', '{ref}', '{library}{pe_reseq}.bam.tmp2'),
+    threads: config['threads_large']
     conda: "../envs/gen_tracks.yaml"
-    log: join(OUT_DIR, 'logs', 'rna',  '{ref}', '{library}{reseq}.log')
+    log: join(OUT_DIR, 'logs', 'rna',  '{ref}', '{library}{pe_reseq}.log')
     shell:
         """
         mkdir -p {params.outdir}
@@ -107,78 +133,46 @@ rule align_rna:
                 -2 {input.R2} 2> {log} > {params.sam}
         samtools sort -@ {threads} -n -O BAM {params.sam} -o {params.tmp1}
         samtools fixmate -@ {threads} --output-fmt bam -m {params.tmp1} {params.tmp2}
-        samtools sort -@ {threads} -O BAM {params.tmp2} -o {params.tmp1}
-        samtools markdup -@ {threads} --output-fmt bam -r {params.tmp1} {params.tmp2}
         samtools view -@ {threads} --output-fmt bam -f 2 -q 10 -1 -b {params.tmp2} -o {params.tmp1}
         samtools sort -@ {threads} --output-fmt bam -l 9 {params.tmp1} -o {output}
         rm {params.sam} {params.tmp1} {params.tmp2}
         """
 
-# Merge RNA-seq alignements
-rule merge_reseq_rna_alignments:
-    input: 
-        lambda w: [join(
-            TMP,
-            'align',
-            w.ref,
-            f'{i.split("_R")[0]}.bam',
-        ) for i in list(filter(
-            lambda x:w.library in x,  list(filter(
-                lambda y: 'R1' in y, os.listdir(FASTQ_DIR)
-            ))
-        ))]
-    output: join(TMP, 'bam', '{ref}', '{library}.bam')
-    threads: config['threads']
-    conda: "../envs/gen_tracks.yaml"
-    shell:
-        """
-        samtools merge -n -O BAM -@ {threads} - {input} | 
-            samtools sort -@ {threads} --output-fmt bam -l 9 -o {output}
-        """
-
-# Build index of transcripts using salmon
-rule salmon_index:
+# Map the reads and sort them.
+rule align_rna_se:
     input:
-        ref = join(REF_DIR, '{ref}.ffn'),
-    output:
-        touch(join(REF_DIR, 'index', '{ref}.salmon_index.done')),
+        index_flag = join(REF_DIR, 'index', '{ref}.bt2_index.done'),
+        R1 = join(TMP, 'trimgalore', '{library}{se_reseq}_R1.fq.gz'),
+    output: 
+        join(TMP, 'bam', '{ref}', '{library}{se_reseq}.bam')
     params:
-        index = join(REF_DIR, '{ref}_salmon_index'),
+        index = join(REF_DIR, 'index', '{ref}'),
+        bt2_presets = config['bowtie2_args'],
+        outdir = join(TMP, 'align', '{ref}'),
+        sam = join(TMP, 'align', '{ref}', '{library}{se_reseq}.sam'),
+        tmp1 = join(TMP, 'align', '{ref}', '{library}{se_reseq}.bam.tmp1'),
+        tmp2 = join(TMP, 'align', '{ref}', '{library}{se_reseq}.bam.tmp2'),
     threads: config['threads']
     conda: "../envs/gen_tracks.yaml"
-    shell: 'salmon index -t {input.ref} -i {params.index}'
-
-# Map librairies using salmon
-rule run_salmon:
-    input:
-        index_flag = join(REF_DIR, '{ref}' + '.salmon_index.done'),
-        R1 = join(TMP, 'trimgalore', '{library}{reseq}_R1.fq.gz'),
-        R2 = join(TMP, 'trimgalore', '{library}{reseq}_R2.fq.gz'),
-    output:
-        touch(join(TMP, 'salmon', '{ref}', '{library}{reseq}.done'))
-    params:
-        index = join(REF_DIR, '{ref}_salmon_index'),
-        outdir = join(TMP, 'salmon', '{ref}', '{library}{reseq}')
-    threads: config['threads']
-    conda: "../envs/gen_tracks.yaml"
+    log: join(OUT_DIR, 'logs', 'rna',  '{ref}', '{library}{se_reseq}.log')
     shell:
         """
         mkdir -p {params.outdir}
-        salmon quant \
-            --libType ISF \
-            --index {params.index} \
-            --mates1 {input.R1} \
-            --mates2 {input.R2} \
-            --threads {threads} \
-            --output {params.outdir}
+        bowtie2 {params.bt2_presets} \
+                -p {threads} \
+                -x {params.index} \
+                -U {input.R1} 2> {log} > {params.sam}
+        samtools view -@ {threads} --output-fmt bam -q 10 -1 -b {params.sam} -o {params.tmp1}
+        samtools sort -@ {threads} --output-fmt bam -l 9 {params.tmp1} -o {output}
+        rm {params.sam} {params.tmp1}
         """
 
 # Preseq QC:
 rule preseq:
     input:
-        bam = join(TMP, 'bam', '{ref}', '{library}.bam'),
+        bam = join(TMP, 'bam', '{ref}', '{library}{reseq}.bam')
     output:
-        preseq = join(OUT_DIR, 'preseq', '{ref}_{library}_preseq.txt'),
+        preseq = join(OUT_DIR, 'preseq', '{ref}_{library}{reseq}_preseq.txt'),
     threads: 1
     conda: "../envs/qc.yaml"
     shell: 'preseq lc_extrap -v -B {input.bam} -o {output.preseq}'
@@ -186,11 +180,11 @@ rule preseq:
 # Build RNA tracks
 rule rna_coverage:
     input:
-        bam = join(TMP, 'bam', '{ref}', '{library}.bam'),
+        bam = join(TMP, 'bam', '{ref}', '{library}{reseq}.bam'),
     output:
-        unstranded = join(OUT_DIR, 'RNA_tracks', '{library}_{ref}_unstranded.bw'),
-        fw = join(OUT_DIR, 'RNA_tracks', '{library}_{ref}_forward.bw'),
-        rv = join(OUT_DIR, 'RNA_tracks', '{library}_{ref}_reverse.bw'),
+        unstranded = join(OUT_DIR, 'RNA_tracks', '{library}{reseq}_{ref}_unstranded.bw'),
+        fw = join(OUT_DIR, 'RNA_tracks', '{library}{reseq}_{ref}_forward.bw'),
+        rv = join(OUT_DIR, 'RNA_tracks', '{library}{reseq}_{ref}_reverse.bw'),
     threads: config['threads']
     conda: "../envs/gen_tracks.yaml"
     shell:
@@ -201,20 +195,20 @@ rule rna_coverage:
             --binSize 1 \
             --numberOfProcessors {threads} \
             --normalizeUsing CPM \
-            --extendReads
+            --extendReads 100
         bamCoverage --bam {input.bam} \
             --outFileName {output.fw} \
             --binSize 1 \
             --numberOfProcessors {threads} \
             --normalizeUsing CPM \
-            --extendReads \
+            --extendReads 100 \
             --filterRNAstrand forward
         bamCoverage --bam {input.bam} \
             --outFileName {output.rv} \
             --binSize 1 \
             --numberOfProcessors {threads} \
             --normalizeUsing CPM \
-            --extendReads \
+            --extendReads 100 \
             --filterRNAstrand reverse
         """
 
@@ -247,14 +241,14 @@ rule join_annotation:
 # RSeQC 
 rule rseqc:
     input:
-        bam = join(TMP, 'bam', '{ref}', '{library}.bam'),
-        bw = join(OUT_DIR, 'RNA_tracks', '{library}_{ref}_unstranded.bw'),
+        bam = join(TMP, 'bam', '{ref}', '{library}{reseq}.bam'),
+        bw = join(OUT_DIR, 'RNA_tracks', '{library}{reseq}_{ref}_unstranded.bw'),
         bed = join(REF_DIR, '{ref}.bed'), 
     output:
-        duprate = join(OUT_DIR, 'RSeQC', '{ref}_{library}.read_duplication.DupRate_plot.pdf'),
-        genebody = join(OUT_DIR, 'RSeQC', '{ref}_{library}.geneBodyCoverage.pdf'),
+        duprate = join(OUT_DIR, 'RSeQC', '{ref}_{library}{reseq}.read_duplication.DupRate_plot.pdf'),
+        genebody = join(OUT_DIR, 'RSeQC', '{ref}_{library}{reseq}.geneBodyCoverage.pdf'),
     params:
-        basename =  join(OUT_DIR, 'RSeQC', '{ref}_{library}'),
+        basename =  join(OUT_DIR, 'RSeQC', '{ref}_{library}{reseq}'),
     threads: 1
     conda: "../envs/qc.yaml"
     shell:
@@ -281,27 +275,49 @@ rule rseqc:
 # MultiQC report
 rule multiQC_rna_report:
     input:
+        join(OUT_DIR, 'RSeQC', '{ref}_DCXXX_nxq2.geneBodyCoverage.pdf'),
+        join(OUT_DIR, 'preseq', '{ref}_DCXXX_nxq2_preseq.txt'),
         expand(
-            join(OUT_DIR, 'RSeQC', '{ref}_{library}.geneBodyCoverage.pdf'),
+            join(OUT_DIR, 'fastqc', 'DCXXX_nxq2_R{end}_fastqc.html'),
+            end=[1, 2],
+        ),
+        expand(
+            join(OUT_DIR, 'fastq_screen', 'DCXXX_nxq2_R{end}_screen.html'),
+            end=[1, 2],
+        ),
+        expand(
+            join(OUT_DIR, 'RSeQC', '{ref}_{library}{reseq}.geneBodyCoverage.pdf'),
             library=library,
+            reseq=config['reseq'],
             ref=config['ref'],
         ),
         expand(
-            join(OUT_DIR, 'preseq', '{ref}_{library}_preseq.txt'),
+            join(OUT_DIR, 'preseq', '{ref}_{library}{reseq}_preseq.txt'),
             library=library,
+            reseq=config['reseq'],
             ref=config['ref'],
         ),
         expand(
-            join(OUT_DIR, 'fastqc', '{library}{reseq}_R{end}_fastqc.html'),
+            join(OUT_DIR, 'fastqc', '{library}{pe_reseq}_R{end}_fastqc.html'),
             library=library,
-            reseq = config['reseq'],
+            pe_reseq = config['pe_reseq'],
             end = [1, 2],
         ),
         expand(
-            join(OUT_DIR, 'fastq_screen', '{library}{reseq}_R{end}_screen.html'),
+            join(OUT_DIR, 'fastqc', '{library}{se_reseq}_R1_fastqc.html'),
             library=library,
-            reseq = config['reseq'],
+            se_reseq = config['se_reseq'],
+        ),
+        expand(
+            join(OUT_DIR, 'fastq_screen', '{library}{pe_reseq}_R{end}_screen.html'),
+            library=library,
+            pe_reseq = config['pe_reseq'],
             end = [1, 2],
+        ),
+        expand(
+            join(OUT_DIR, 'fastq_screen', '{library}{se_reseq}_R1_screen.html'),
+            library=library,
+            se_reseq = config['se_reseq'],
         ),
     output:
         join(OUT_DIR, 'multiqc', '{ref}_multiqc_report.html'),
