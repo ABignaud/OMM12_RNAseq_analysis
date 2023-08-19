@@ -15,7 +15,7 @@ threads_small : 4
 # RNA processing
 reseq : ['_isq', '_nxq', '_mgi']
 se_reseq : ['_nxq']
-pe_reseq : ['_isq', '_mgi']
+pe_reseq : ['_isq', '_mgi', '_nxq']
 ref : ['OMM12_citro']
 bacteria : [
   'a_muciniphila',

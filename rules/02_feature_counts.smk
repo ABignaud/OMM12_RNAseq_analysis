@@ -36,9 +36,8 @@ rule featureCounts_pe:
         fasta = join(REF_DIR, '{bacteria}.fa'),
         gff = join(REF_DIR, '{bacteria}.{sens}.gtf'),
         bam = expand(
-            join(TMP, 'bam', f'{config["ref"][0]}', '{library}{pe_reseq}.bam'),
-            library=library,
-            pe_reseq=config['pe_reseq'],
+            join(TMP, 'bam', f'{config["ref"][0]}', '{sample}.bam'),
+            sample=sample_pe,
         ),
         bam2 = join(TMP, 'bam', f'{config["ref"][0]}', 'DCXXX_nxq2.bam'),
     output:
@@ -74,9 +73,8 @@ rule featureCounts_se:
         fasta = join(REF_DIR, '{bacteria}.fa'),
         gff = join(REF_DIR, '{bacteria}.{sens}.gtf'),
         bam = expand(
-            join(TMP, 'bam', f'{config["ref"][0]}', '{library}{se_reseq}.bam'),
-            library=library,
-            se_reseq=config['se_reseq'],
+            join(TMP, 'bam', f'{config["ref"][0]}', '{sample}.bam'),
+            sample=sample_se,
         ),
     output:
         join(OUT_DIR, 'featureCounts', '{bacteria}_se_featureCounts.{sens}.txt'),

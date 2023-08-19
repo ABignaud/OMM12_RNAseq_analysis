@@ -25,6 +25,13 @@ samples = pd.read_csv(
     comment='#',
 ).set_index(['library'], drop=False)
 
+metadata = pd.read_csv(
+    config['metadata'], 
+    sep=';', 
+    dtype=str,
+    comment='#',
+).set_index(['sample'], drop=False)
+
 # Set directory
 OUT_DIR = join(config['base_dir'], config['out_dir'])
 TMP = join(config['base_dir'], config['tmp_dir'])
@@ -33,13 +40,17 @@ FASTQ_DIR = join(config['base_dir'], config['fastq_dir'])
 FIG_DIR = join(config['base_dir'], config['fig_dir'])
 
 library = np.unique(samples.library) 
+sample = np.unique(metadata.index)
+sample_pe = np.unique(metadata.index[metadata.end == "pe"])
+sample_se = np.unique(metadata.index[metadata.end == "se"])
 
 wildcard_constraints:
-    library = f"{'|'.join(library)}|DCXXX",
+    library = f"{'|'.join(library)}",
+    sample = f"{'|'.join(sample)}",
     ref = '|'.join(config['ref']),
-    reseq = f"{'|'.join(config['reseq'])}|_nxq2",
+    reseq = f"{'|'.join(config['reseq'])}",
     se_reseq = "|".join(config['se_reseq']),
-    pe_reseq = f"{'|'.join(config['pe_reseq'])}|_nxq2",
+    pe_reseq = f"{'|'.join(config['pe_reseq'])}",
 
 # Pipeline sub-workflows
 include: 'rules/01_rna_processing.smk'

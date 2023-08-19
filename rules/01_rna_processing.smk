@@ -3,16 +3,27 @@
 # Rule to generates the RNA tracks
 
 # FastQC
-rule rna_fastqc:
+rule rna_fastqc_pe:
     input:
-        join(FASTQ_DIR, '{library}{reseq}_R{end}.fq.gz'),
+        join(FASTQ_DIR, '{library}{pe_reseq}_R{end}.fq.gz'),
     output:
-        join(OUT_DIR, 'fastqc', '{library}{reseq}_R{end}_fastqc.html'),
+        join(OUT_DIR, 'fastqc', '{library}{pe_reseq}_R{end}_fastqc.html'),
     params:
         outdir = join(OUT_DIR, 'fastqc')
     threads: config['threads']
     conda: "../envs/qc.yaml"
     shell: 'fastqc --quiet --threads {threads} --outdir {params.outdir} {input}'        
+
+rule rna_fastqc_se:
+    input:
+        join(FASTQ_DIR, '{library}{se_reseq}.fq.gz'),
+    output:
+        join(OUT_DIR, 'fastqc', '{library}{se_reseq}_fastqc.html'),
+    params:
+        outdir = join(OUT_DIR, 'fastqc')
+    threads: config['threads']
+    conda: "../envs/qc.yaml"
+    shell: 'fastqc --quiet --threads {threads} --outdir {params.outdir} {input}'  
 
 # Trim adapters
 rule rna_trimgalore_pe:
@@ -49,9 +60,9 @@ rule rna_trimgalore_pe:
 
 rule rna_trimgalore_se:
     input:
-        R1 = join(FASTQ_DIR, '{library}{se_reseq}_R1.fq.gz'),
+        R1 = join(FASTQ_DIR, '{library}{se_reseq}.fq.gz'),
     output:
-        R1 = join(TMP, 'trimgalore', '{library}{se_reseq}_R1.fq.gz'),
+        R1 = join(TMP, 'trimgalore', '{library}{se_reseq}.fq.gz'),
     params:
         basename = '{library}{se_reseq}',
         outdir = join(TMP, 'trimgalore'),
@@ -73,11 +84,32 @@ rule rna_trimgalore_se:
         """
 
 # fastq screen
-rule rna_fastq_screen:
+rule rna_fastq_screen_pe:
     input:
-        fastq = join(TMP, 'trimgalore', '{library}{reseq}_R{end}.fq.gz'),
+        fastq = join(TMP, 'trimgalore', '{library}{pe_reseq}_R{end}.fq.gz'),
     output:
-        join(OUT_DIR, 'fastq_screen', '{library}{reseq}_R{end}_screen.html'),
+        join(OUT_DIR, 'fastq_screen', '{library}{pe_reseq}_R{end}_screen.html'),
+    params:
+        outdir =  join(OUT_DIR, 'fastq_screen'),
+        conf = config['fastq_screen_conf']
+    threads: config['threads']
+    conda: "../envs/qc.yaml"
+    shell:
+        """
+        mkdir -p {params.outdir}
+        fastq_screen \
+            --outdir {params.outdir} \
+            --conf {params.conf} \
+            --threads {threads} \
+            --force \
+            {input.fastq} 
+        """
+
+rule rna_fastq_screen_se:
+    input:
+        fastq = join(TMP, 'trimgalore', '{library}{se_reseq}.fq.gz'),
+    output:
+        join(OUT_DIR, 'fastq_screen', '{library}{se_reseq}_screen.html'),
     params:
         outdir =  join(OUT_DIR, 'fastq_screen'),
         conf = config['fastq_screen_conf']
@@ -142,7 +174,7 @@ rule align_rna_pe:
 rule align_rna_se:
     input:
         index_flag = join(REF_DIR, 'index', '{ref}.bt2_index.done'),
-        R1 = join(TMP, 'trimgalore', '{library}{se_reseq}_R1.fq.gz'),
+        R1 = join(TMP, 'trimgalore', '{library}{se_reseq}.fq.gz'),
     output: 
         join(TMP, 'bam', '{ref}', '{library}{se_reseq}.bam')
     params:
@@ -275,49 +307,33 @@ rule rseqc:
 # MultiQC report
 rule multiQC_rna_report:
     input:
-        join(OUT_DIR, 'RSeQC', '{ref}_DCXXX_nxq2.geneBodyCoverage.pdf'),
-        join(OUT_DIR, 'preseq', '{ref}_DCXXX_nxq2_preseq.txt'),
         expand(
-            join(OUT_DIR, 'fastqc', 'DCXXX_nxq2_R{end}_fastqc.html'),
-            end=[1, 2],
-        ),
-        expand(
-            join(OUT_DIR, 'fastq_screen', 'DCXXX_nxq2_R{end}_screen.html'),
-            end=[1, 2],
-        ),
-        expand(
-            join(OUT_DIR, 'RSeQC', '{ref}_{library}{reseq}.geneBodyCoverage.pdf'),
-            library=library,
-            reseq=config['reseq'],
+            join(OUT_DIR, 'RSeQC', '{ref}_{sample}.geneBodyCoverage.pdf'),
+            sample=sample,
             ref=config['ref'],
         ),
         expand(
-            join(OUT_DIR, 'preseq', '{ref}_{library}{reseq}_preseq.txt'),
-            library=library,
-            reseq=config['reseq'],
+            join(OUT_DIR, 'preseq', '{ref}_{sample}_preseq.txt'),
+            sample=sample,
             ref=config['ref'],
         ),
         expand(
-            join(OUT_DIR, 'fastqc', '{library}{pe_reseq}_R{end}_fastqc.html'),
-            library=library,
-            pe_reseq = config['pe_reseq'],
+            join(OUT_DIR, 'fastqc', '{sample}_R{end}_fastqc.html'),
+            sample=sample_pe,
             end = [1, 2],
         ),
         expand(
-            join(OUT_DIR, 'fastqc', '{library}{se_reseq}_R1_fastqc.html'),
-            library=library,
-            se_reseq = config['se_reseq'],
+            join(OUT_DIR, 'fastqc', '{sample}_fastqc.html'),
+            sample=sample_se,
         ),
         expand(
-            join(OUT_DIR, 'fastq_screen', '{library}{pe_reseq}_R{end}_screen.html'),
-            library=library,
-            pe_reseq = config['pe_reseq'],
+            join(OUT_DIR, 'fastq_screen', '{sample}_R{end}_screen.html'),
+            sample=sample_pe,
             end = [1, 2],
         ),
         expand(
-            join(OUT_DIR, 'fastq_screen', '{library}{se_reseq}_R1_screen.html'),
-            library=library,
-            se_reseq = config['se_reseq'],
+            join(OUT_DIR, 'fastq_screen', '{sample}_screen.html'),
+            sample=sample_se,
         ),
     output:
         join(OUT_DIR, 'multiqc', '{ref}_multiqc_report.html'),
